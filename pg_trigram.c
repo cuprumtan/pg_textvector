@@ -105,12 +105,12 @@ trigrams(PG_FUNCTION_ARGS)
 		PG_RETURN_TEXT_P(out);
 	} else {
 		/* create structure to store trigrams and allocate memory for struct array */
-		typedef struct Trigram
+		typedef struct
 		{
 			text* value;
-		};
-		struct Trigram* trigram;
-		trigram = malloc(trigrams_count*sizeof(struct Trigram*));
+		} Trigram;
+		Trigram* trigram;
+		trigram = malloc(trigrams_count*sizeof(Trigram*));
 
 		/* create pointers to input_text */
 		char* ptr_start = VARDATA(out);
