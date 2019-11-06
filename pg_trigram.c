@@ -11,6 +11,7 @@ PG_FUNCTION_INFO_V1(search_trigrams);
 PG_FUNCTION_INFO_V1(test_text_args);
 PG_FUNCTION_INFO_V1(count_bytes);
 PG_FUNCTION_INFO_V1(count_symbols);
+PG_FUNCTION_INFO_V1(trigrams);
 
 
 Datum
@@ -71,4 +72,66 @@ count_symbols(PG_FUNCTION_ARGS)
 	}
 	
 	PG_RETURN_INT32(symbols);
+}
+
+
+Datum
+trigrams(PG_FUNCTION_ARGS)
+{
+	/* get input text and allocate memory */
+	text* input_text = PG_GETARG_TEXT_P(0);
+	int32 input_text_size = VARSIZE(input_text);	/* ignore VARHDRSZ because we have monolith text */
+	text* out = (text*)palloc(input_text_size);
+	SET_VARSIZE(out, input_text_size);
+	memcpy(VARDATA(out), VARDATA(input_text), input_text_size);
+		
+	/* get number of characters */
+	int32 count_symbols = 0;
+	unsigned char mlen = 0;
+	input_text_size -= VARHDRSZ;
+	char* ptr = VARDATA(out);
+	while (input_text_size > 0) {
+                mlen = pg_mblen(ptr);
+                ptr += mlen;
+                count_symbols++;
+                input_text_size -= mlen;
+        }
+
+	/* count trigrams number */
+	int32 trigrams_count = count_symbols - 2;
+	
+	/* if trigrams <= 1 return input_text */
+	if (trigrams_count <= 1) {
+		PG_RETURN_TEXT_P(out);
+	} else {
+		/* create structure to store trigrams and allocate memory for struct array */
+		typedef struct Trigram
+		{
+			text* value;
+		};
+		struct Trigram* trigram;
+		trigram = malloc(trigrams_count*sizeof(struct Trigram*));
+
+		/* create pointers to input_text */
+		char* ptr_start = VARDATA(out);
+		char* ptr_end = ptr_start;
+		
+		/* fill struct array with trigrams */
+		unsigned char i, j;
+		for (i = 0; i < trigrams_count; i++)
+		{
+			/* shift ptr_end to the end of trigram */
+			for (j = 0; j < 3; j++)
+			{
+				mlen = pg_mblen(ptr_end);
+				ptr_end += mlen;		
+			}
+			/* copy trigram into struct member */
+			memcpy(VARDATA(trigram[i].value), ptr_start, ptr_end - ptr_start);
+			/* shift ptr_start to the start of the next trigram */
+			ptr_start = ptr_end;
+		}
+		/* return first trigram TEST! */
+		PG_RETURN_TEXT_P(out);	
+	}
 }

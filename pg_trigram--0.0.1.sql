@@ -13,3 +13,7 @@ LANGUAGE C STRICT;
 CREATE FUNCTION count_symbols(text)
 RETURNS INTEGER AS 'pg_trigram', 'count_symbols'
 LANGUAGE C STRICT;
+
+CREATE FUNCTION trigrams(text)
+RETURNS TEXT AS 'pg_trigram', 'trigrams'
+LANGUAGE C STRICT;
