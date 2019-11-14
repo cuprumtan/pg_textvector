@@ -44,7 +44,7 @@ get_vector(PG_FUNCTION_ARGS)
 	char* Ngram;			    // to store Ngram
 	char* ptr_start = &(input->vl_dat); // to store the start of Ngram
 	char* ptr_end = ptr_start;	    // to shift to the end of Ngram
-	uint8_t symbol_size, hash, Ngram_size, counter;
+	uint8_t symbol_size, hash, Ngram_size, counter, offset;
 	
 	Datum* elems;
 	ArrayType* hash_buckets_pg;
@@ -73,9 +73,9 @@ get_vector(PG_FUNCTION_ARGS)
 		hash_buckets[hash]++;
 		
 		// shift ptr_start to the start of the next Ngram
-		ptr_start += pg_mblen(ptr_start);
-		
-		input_size -= Ngram_size;
+		offset = pg_mblen(ptr_start);
+		ptr_start += offset;
+		input_size -= offset;
 		
 	}
 	
