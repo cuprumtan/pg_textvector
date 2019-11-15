@@ -6,7 +6,6 @@
 
 
 #define N 3
-#define HASH_BUCKETS 12
 #define FNV_PRIME 16777619
 #define FNV_OFFSET 2166136261U
 
@@ -16,17 +15,20 @@ PG_MODULE_MAGIC;
 PG_FUNCTION_INFO_V1(get_vector);
 
 
+uint8_t FNV1a(char* text, uint8_t len, int32 HASH_BUCKETS);
+
+
 uint8_t
-FNV1a(char* text, uint8_t len)
+FNV1a(char* text, uint8_t len, int32 HASH_BUCKETS)
 {
         uint32_t hash = FNV_OFFSET, i;
-
+	
         for (i = 0; i < len; i++)
 	{
                 hash ^= (text[i]);
                 hash *= FNV_PRIME;
         }
-
+	
         return hash % HASH_BUCKETS;
 }
 
@@ -34,14 +36,15 @@ FNV1a(char* text, uint8_t len)
 Datum
 get_vector(PG_FUNCTION_ARGS)
 {
-        char* ptr_start = PG_GETARG_CSTRING(0);
+	int32 HASH_BUCKETS = PG_GETARG_INT32(0);
+	float8 hash_buckets[HASH_BUCKETS];
+        char* ptr_start = PG_GETARG_CSTRING(1);
 	int32 input_size = strlen(ptr_start);
-	
-        float8 hash_buckets[HASH_BUCKETS] = {0};
-	uint8_t hash, Ngram_size = 0, counter, offset;
-	
+	uint8_t hash, counter, offset, Ngram_size = 0;
         Datum* elems;
         ArrayType* hash_buckets_pg;
+	
+	memset(hash_buckets, 0, sizeof(hash_buckets));
 	
         while (input_size >= Ngram_size)
         {
@@ -50,7 +53,7 @@ get_vector(PG_FUNCTION_ARGS)
                 for (counter = 0; counter < N; counter++)
                         Ngram_size += pg_mblen(ptr_start + Ngram_size);
 		
-                hash = FNV1a(ptr_start, Ngram_size);
+                hash = FNV1a(ptr_start, Ngram_size, HASH_BUCKETS);
 		hash_buckets[hash]++;
 		
                 offset = pg_mblen(ptr_start);
@@ -62,9 +65,7 @@ get_vector(PG_FUNCTION_ARGS)
         elems = (Datum*)palloc(sizeof(hash_buckets) * sizeof(Datum));
 	
         for (counter = 0; counter < HASH_BUCKETS; counter++)
-        {
-                elems[counter] = Float8GetDatum(hash_buckets[counter]);
-        }
+		elems[counter] = Float8GetDatum(hash_buckets[counter]);
 	
         hash_buckets_pg = construct_array(
                                           elems,
@@ -77,5 +78,4 @@ get_vector(PG_FUNCTION_ARGS)
 	
         PG_RETURN_ARRAYTYPE_P(hash_buckets_pg);
 }
-
 
