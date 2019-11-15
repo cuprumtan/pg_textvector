@@ -1,0 +1,3 @@
+comment = 'test PostgreSQL extension to get N-dimensional vector from text'
+default_version = '0.0.1'
+relocatable = true
