@@ -38,8 +38,9 @@ get_vector(PG_FUNCTION_ARGS)
 {
 	int32 HASH_BUCKETS = PG_GETARG_INT32(0);
 	float8 hash_buckets[HASH_BUCKETS];
-        char* ptr_start = PG_GETARG_CSTRING(1);
-	int32 input_size = strlen(ptr_start);
+        text* input = PG_GETARG_TEXT_P(1);
+	char* ptr_start = &(input->vl_dat);
+	int32 input_size = VARSIZE(input) - VARHDRSZ;
 	uint8_t hash, counter, offset, Ngram_size = 0;
         Datum* elems;
         ArrayType* hash_buckets_pg;
