@@ -7,30 +7,15 @@
 
 #define N 3
 #define FNV_PRIME 16777619
-#define FNV_OFFSET 2166136261U
+#define FNV_OFFSET 2166136261
+
+
+#define is_match(code, length) (length >= 2) ? 1: (((code == 0x0020) || ((code >= 0x0030) && (code <= 0x0039)) || ((code >= 0x0041) && (code <= 0x005A)) || ((code >= 0x0061) && (code <= 0x007A))) ? 1: 0)
 
 
 PG_MODULE_MAGIC;
 
 PG_FUNCTION_INFO_V1(get_vector);
-
-
-uint8_t FNV1a(char* text, uint8_t len, int32 HASH_BUCKETS);
-
-
-uint8_t
-FNV1a(char* text, uint8_t len, int32 HASH_BUCKETS)
-{
-        uint32_t hash = FNV_OFFSET, i;
-	
-        for (i = 0; i < len; i++)
-	{
-                hash ^= (text[i]);
-                hash *= FNV_PRIME;
-        }
-	
-        return hash % HASH_BUCKETS;
-}
 
 
 Datum
@@ -41,25 +26,41 @@ get_vector(PG_FUNCTION_ARGS)
         text* input = PG_GETARG_TEXT_P(1);
 	char* ptr_start = &(input->vl_dat);
 	int32 input_size = VARSIZE(input) - VARHDRSZ;
-	uint8_t hash, counter, offset, Ngram_size = 0;
+	uint8_t counter = 0, length, length_counter, array_counter;
+	uint32_t symbol_counter = 0, current_size = 0, hash_array[N] = {FNV_OFFSET};
         Datum* elems;
         ArrayType* hash_buckets_pg;
 	
 	memset(hash_buckets, 0, sizeof(hash_buckets));
 	
-        while (input_size >= Ngram_size)
+        while (input_size > current_size)
         {
-                Ngram_size = 0;
+		length = pg_mblen(ptr_start + current_size);
 		
-                for (counter = 0; counter < N; counter++)
-                        Ngram_size += pg_mblen(ptr_start + Ngram_size);
+		if (is_match((int)(*(ptr_start + current_size)), length))
+		{
+			counter++;
+			symbol_counter++;
+			
+			for (array_counter = 0; array_counter < counter; array_counter++)
+			{
+				for (length_counter = 0; length_counter < length; length_counter++)
+				{
+					hash_array[array_counter] ^= (int)(*(ptr_start + current_size + length_counter)); 
+					hash_array[array_counter] *= FNV_PRIME;
+				}
+			}
+			
+			if (symbol_counter > (N - 1))
+			{
+				hash_buckets[(hash_array[counter % N]) % HASH_BUCKETS]++;
+				hash_array[counter % N] = FNV_OFFSET;
+			}
+			
+			counter = (counter == N) ? 0: counter;
+		}
 		
-                hash = FNV1a(ptr_start, Ngram_size, HASH_BUCKETS);
-		hash_buckets[hash]++;
-		
-                offset = pg_mblen(ptr_start);
-                ptr_start += offset;
-                input_size -= offset;
+		current_size += length;
 		
         }
 	
