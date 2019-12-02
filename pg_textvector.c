@@ -49,14 +49,15 @@ get_vector(PG_FUNCTION_ARGS)
 					/* hash_array[array_counter] ^= (int)(*(ptr_start + current_size + length_counter)); 
 					hash_array[array_counter] *= FNV_PRIME; */
 					
-					hash_array[array_counter] += (int)(*(ptr_start + current_size + length_counter));
+					hash_array[array_counter] ^= (int)(*(ptr_start + current_size + length_counter));
 					
 				}
 			}
 			
 			if (symbol_counter > (N - 1))
 			{
-				hash_buckets[(hash_array[counter % N]) % HASH_BUCKETS]++;
+				/* hash_buckets[(hash_array[counter % N]) % HASH_BUCKETS]++; */
+				hash_buckets[(uint8_t)(hash_array[counter % N] * 158) >> 4]++;
 				hash_array[counter % N] = 0;
 			}
 			
