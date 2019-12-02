@@ -49,7 +49,7 @@ get_vector(PG_FUNCTION_ARGS)
 					/* hash_array[array_counter] ^= (int)(*(ptr_start + current_size + length_counter)); 
 					hash_array[array_counter] *= FNV_PRIME; */
 					
-					hash_array[array_counter] ^= (int)(*(ptr_start + current_size + length_counter));
+					hash_array[array_counter] += (int)(*(ptr_start + current_size + length_counter));
 					
 				}
 			}
