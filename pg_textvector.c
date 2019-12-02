@@ -27,7 +27,7 @@ get_vector(PG_FUNCTION_ARGS)
 	char* ptr_start = &(input->vl_dat);
 	int32 input_size = VARSIZE(input) - VARHDRSZ;
 	uint8_t counter = 0, length, length_counter, array_counter;
-	uint32_t symbol_counter = 0, current_size = 0, hash_array[N] = {FNV_OFFSET};
+	uint32_t symbol_counter = 0, current_size = 0, hash_array[N] = {0};
         Datum* elems;
         ArrayType* hash_buckets_pg;
 	
@@ -46,15 +46,18 @@ get_vector(PG_FUNCTION_ARGS)
 			{
 				for (length_counter = 0; length_counter < length; length_counter++)
 				{
-					hash_array[array_counter] ^= (int)(*(ptr_start + current_size + length_counter)); 
-					hash_array[array_counter] *= FNV_PRIME;
+					/* hash_array[array_counter] ^= (int)(*(ptr_start + current_size + length_counter)); 
+					hash_array[array_counter] *= FNV_PRIME; */
+					
+					hash_array[array_counter] += (int)(*(ptr_start + current_size + length_counter));
+					
 				}
 			}
 			
 			if (symbol_counter > (N - 1))
 			{
 				hash_buckets[(hash_array[counter % N]) % HASH_BUCKETS]++;
-				hash_array[counter % N] = FNV_OFFSET;
+				hash_array[counter % N] = 0;
 			}
 			
 			counter = (counter == N) ? 0: counter;
