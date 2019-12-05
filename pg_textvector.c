@@ -183,7 +183,7 @@ get_vector_CRC8(PG_FUNCTION_ARGS)
 						hash_array[array_counter] += (crc ^ extract) & 0x01;
 						crc >>= 1;
 						if (hash_array[array_counter])
-							crc ^= 0x8C;
+							crc ^= 0x07;
 						extract >>= 1;
 					}
                                 }
