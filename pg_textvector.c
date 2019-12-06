@@ -18,6 +18,7 @@ PG_MODULE_MAGIC;
 PG_FUNCTION_INFO_V1(get_vector_multihash);
 PG_FUNCTION_INFO_V1(get_vector_FNV1a);
 PG_FUNCTION_INFO_V1(get_vector_CRC8);
+PG_FUNCTION_INFO_V1(get_vector_float);
 
 
 Datum
@@ -92,11 +93,12 @@ get_vector_FNV1a(PG_FUNCTION_ARGS)
         char* ptr_start = &(input->vl_dat);
         int32 input_size = VARSIZE(input) - VARHDRSZ;
         uint8_t counter = 0, length, length_counter, array_counter;
-        uint32_t symbol_counter = 0, current_size = 0, hash_array[N] = {FNV_PRIME};
+        uint32_t symbol_counter = 0, current_size = 0, hash_array[N];
         Datum* elems;
         ArrayType* hash_buckets_pg;
 
         memset(hash_buckets, 0, sizeof(hash_buckets));
+	memset(hash_array, FNV_PRIME, sizeof(hash_array));
 
         while (input_size > current_size)
         {
@@ -180,7 +182,7 @@ get_vector_CRC8(PG_FUNCTION_ARGS)
 					extract = *(ptr_start + current_size + length_counter);
                                         for (byte_counter = 0; byte_counter < 8; byte_counter++)
 					{
-						hash_array[array_counter] += (crc ^ extract) & 0x01;
+						hash_array[array_counter] = (crc ^ extract) & 0x01;
 						crc >>= 1;
 						if (hash_array[array_counter])
 							crc ^= 0x07;
@@ -219,3 +221,67 @@ get_vector_CRC8(PG_FUNCTION_ARGS)
         PG_RETURN_ARRAYTYPE_P(hash_buckets_pg);
 }
 
+Datum
+get_vector_float(PG_FUNCTION_ARGS)
+{
+        int32 HASH_BUCKETS = PG_GETARG_INT32(0);
+        float8 hash_buckets[HASH_BUCKETS], temp_result;
+        text* input = PG_GETARG_TEXT_P(1);
+        char* ptr_start = &(input->vl_dat);
+        int32 input_size = VARSIZE(input) - VARHDRSZ;
+        uint8_t counter = 0, length, length_counter, array_counter, byte_counter;
+        uint32_t symbol_counter = 0, current_size = 0, hash_array[N] = {0};
+        Datum* elems;
+        ArrayType* hash_buckets_pg;
+
+        memset(hash_buckets, 0, sizeof(hash_buckets));
+
+        while (input_size > current_size)
+        {
+                length = pg_mblen(ptr_start + current_size);
+
+                if (is_match((int)(*(ptr_start + current_size)), length))
+                {
+                        counter++;
+                        symbol_counter++;
+
+                        for (array_counter = 0; array_counter < counter; array_counter++)
+                        {
+                                for (length_counter = 0; length_counter < length; length_counter++)
+                                {
+                                        hash_array[array_counter] ^= (int)(*(ptr_start + current_size + length_counter));
+                                }
+                        }
+
+                        if (symbol_counter > (N - 1))
+                        {
+				//temp_result = (float8)(hash_buckets[hash_array[counter % N]] / 256);
+				//hash_buckets[(uint8_t)(temp_result * (N - 1))]++;
+				hash_buckets[(hash_array[counter % N]) % HASH_BUCKETS]++;
+                                hash_array[counter % N] = 0;
+                        }
+
+                        counter = (counter == N) ? 0: counter;
+                }
+
+                current_size += length;
+
+        }
+
+        elems = (Datum*)palloc(sizeof(hash_buckets) * sizeof(Datum));
+
+        for (counter = 0; counter < HASH_BUCKETS; counter++)
+                elems[counter] = Float8GetDatum(hash_buckets[counter]);
+
+        hash_buckets_pg = construct_array(
+                                          elems,
+                                          HASH_BUCKETS,
+                                          701,
+                                          sizeof(float8),
+                                          FLOAT8PASSBYVAL,
+                                          'd'
+                                         );
+
+        PG_RETURN_ARRAYTYPE_P(hash_buckets_pg);
+
+}

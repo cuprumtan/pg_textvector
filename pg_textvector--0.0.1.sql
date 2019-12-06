@@ -9,3 +9,7 @@ LANGUAGE C STRICT IMMUTABLE;
 CREATE FUNCTION get_vector_CRC8(integer, text)
 RETURNS float8[] AS 'pg_textvector', 'get_vector_CRC8'
 LANGUAGE C STRICT IMMUTABLE;
+
+CREATE FUNCTION get_vector_float(integer, text)
+RETURNS float8[] AS 'pg_textvector', 'get_vector_float'
+LANGUAGE C STRICT IMMUTABLE;
